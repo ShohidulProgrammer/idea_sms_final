@@ -1,4 +1,4 @@
-package com.example.idea_sms
+package com.ideaxen.hr.ideasms
 
 import android.Manifest.*
 import android.content.pm.PackageManager
@@ -60,7 +60,6 @@ class MainActivity : FlutterActivity() {
                 var id = call.argument<Int>("id")
                 if (id == null) id = 0
                 sendSMS(id, mobile, user, msg, send, result)
-                println("Send Sms: $id $mobile $user $msg")
             } else {
                 result.notImplemented()
             }
@@ -77,8 +76,6 @@ class MainActivity : FlutterActivity() {
     //    send sms
     private fun sendSMS(id: Int, phoneNo: String?, user: String?, msg: String?, oldSendResult: Int?, result: MethodChannel.Result) {
         try {
-            println("main method send sms ID: $id ")
-
             val sms = arrayOfNulls<String>(5)
             sms[0] = "$id"
             sms[1] = "$phoneNo"
@@ -86,8 +83,6 @@ class MainActivity : FlutterActivity() {
             sms[3] = "$msg"
             sms[4] = "$oldSendResult"
             val iSent = Intent(ACTION_SMS_SENT)
-
-//            iSent.putExtra(RECEIVED_SMS_SENT, id)
             iSent.putExtra(RECEIVED_SMS_INFO, sms)
 
             val iDel = Intent(ACTION_SMS_DELIVERED)
@@ -95,8 +90,11 @@ class MainActivity : FlutterActivity() {
 
 
             // get the default instance of SmsManager
-            val smsManager = SmsManager.getDefault()
-//requestCode:int
+            val smsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.DONUT) {
+                SmsManager.getDefault()
+            } else {
+                TODO("VERSION.SDK_INT < DONUT")
+            }
             val piSent = PendingIntent.getBroadcast(this, id, iSent, 0)
             val piDel = PendingIntent.getBroadcast(this, id, iDel, 0)
 

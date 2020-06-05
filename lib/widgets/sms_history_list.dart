@@ -1,21 +1,16 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:idea_sms/sms_helper/make_ready_to_send_sms.dart';
-import 'package:provider/provider.dart';
-import 'package:rflutter_alert/rflutter_alert.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
 import '../sms_helper/make_ready_to_send_sms.dart';
-import '../utilities/alert_style.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import '../db/model/sms_history_model.dart';
 import '../db/utils/db_helper.dart';
 import '../utilities/list_separator.dart';
 import '../widgets/sms_history_list_item.dart';
-import '../utilities/snackbar.dart';
 
 DatabaseHelper dbHelper = DatabaseHelper.db;
 
 class SmsHistoryList extends StatefulWidget {
-  final String appTitle = 'Sms History';
+  final String appTitle = 'SMS history';
 
   @override
   _SmsHistoryListState createState() => _SmsHistoryListState();
@@ -24,11 +19,15 @@ class SmsHistoryList extends StatefulWidget {
 class _SmsHistoryListState extends State<SmsHistoryList> {
   final FirebaseMessaging _fcm = FirebaseMessaging();
   Future<List<SmsHistoryModel>> _listFuture;
+
   int i = 0;
+
+  final globalKey = GlobalKey<ScaffoldState>();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: globalKey,
       appBar: AppBar(
         title: Text(widget.appTitle),
         actions: <Widget>[
@@ -45,36 +44,11 @@ class _SmsHistoryListState extends State<SmsHistoryList> {
             onPressed: () {
               String title = 'Confirm deletion';
               String desc = 'Are you sure to delete all these messages?';
-              int ok = 0;
-              Alert(
+              myAlertDialog(
                 context: context,
-                style: kAlertStyle,
                 title: title,
                 desc: desc,
-                buttons: [
-                  DialogButton(
-                    child: Text(
-                      "Yes",
-                      style: TextStyle(color: Colors.white, fontSize: 20),
-                    ),
-                    onPressed: () => {
-                      dbHelper.deleteAll(table: dbHelper.historyTable),
-                      mySnackBar(
-                          context: context,
-                          msg: 'All Sms History Deleted successfully!'),
-                      refreshList(),
-                      Navigator.pop(context),
-                    },
-                  ),
-                  DialogButton(
-                    child: Text(
-                      "Cancel",
-                      style: TextStyle(color: Colors.white, fontSize: 20),
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                  )
-                ],
-              ).show();
+              );
             },
           ),
         ],
@@ -88,13 +62,20 @@ class _SmsHistoryListState extends State<SmsHistoryList> {
   Widget _buildSmsHistoryList(BuildContext context) {
     return FutureBuilder<List<SmsHistoryModel>>(
 //        future: dbHelper.getAllHistories(),
-        future: _listFuture,
+        future: _listFuture ?? [],
         builder: (context, AsyncSnapshot<List<SmsHistoryModel>> snapshot) {
-          if (snapshot.hasData) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.data.length <= 0) {
+            return Center(child: Text('No SMS'));
+          } else if (snapshot.hasError) {
+            debugPrint('Snap Shot Data: ${snapshot.data}');
+            return Center(child: Text('There was an error'));
+          } else if (snapshot.hasData) {
             return ListView.separated(
-              itemCount: snapshot.data.length,
+              itemCount: snapshot.data.length ?? 0,
               itemBuilder: (_, int index) {
-                SmsHistoryModel smsHistoryItem = snapshot.data[index];
+                SmsHistoryModel smsHistoryItem = snapshot.data[index] ?? 0;
                 return historyListItem(
                   smsHistory: smsHistoryItem,
                   child: SmsHistoryItemWidget(
@@ -105,12 +86,8 @@ class _SmsHistoryListState extends State<SmsHistoryList> {
               separatorBuilder: (BuildContext context, int index) =>
                   kListSparatorDivider(),
             );
-          } else if (snapshot.hasError) {
-            debugPrint('Snap Shot Data: ${snapshot.data}');
-            return Center(child: Text('There was an error'));
           } else {
-            // return Center(child: CircularProgressIndicator());
-            return Center(child: Text('No Value yet'));
+            return Center(child: CircularProgressIndicator());
           }
         });
   }
@@ -130,11 +107,7 @@ class _SmsHistoryListState extends State<SmsHistoryList> {
             onTap: () {
               dbHelper.deleteMassages(
                   table: dbHelper.historyTable, mobile: smsHistory.mobileNo);
-
-              mySnackBar(
-                  context: context,
-                  msg:
-                      'All Massages successfully deleted for Mobile No: ${smsHistory.mobileNo}!');
+              showSnackbar(context, 'Massages are successfully deleted!');
               setState(() {
                 refreshList();
               });
@@ -156,28 +129,31 @@ class _SmsHistoryListState extends State<SmsHistoryList> {
     _listFuture = dbHelper.getAllMobileHistories();
   }
 
-  void refreshList() {
+  refreshList() {
     // reload
     setState(() {
       _listFuture = dbHelper.getAllMobileHistories();
     });
-    mySnackBar(context: context, msg: 'Refresh successfully!');
+//    showSnackbar(context, 'Successfully Refresh!');
   }
 
-  Future<dynamic> _handleNotification(Map<String, dynamic> message) {
+  Future<dynamic> _handleNotification(Map<String, dynamic> message) async {
     if (message.containsKey('data')) {
       // Handle data message
-      print("\nNotification was received");
       var data = message['data'] ?? message;
       String url = data['url'];
       print('\nUrl ${++i} : $url');
+      if (url != '') {
+        // send sms
+        makeReadyToSendSms(context: this.context, url: url);
+      }
 
-      // send sms
-      makeReadyToSendSms(context: this.context, url: url);
+      url = '';
+      message.clear();
+      print('Message: $message URL: $url');
     } else {
       print("This is not a data message");
     }
-
     Future.delayed(const Duration(seconds: 5), () {
       setState(() {
         refreshList();
@@ -185,11 +161,92 @@ class _SmsHistoryListState extends State<SmsHistoryList> {
     });
   }
 
+  Future<dynamic> _notificationTapHandler(Map<String, dynamic> message) async {
+    String newNotifyTime, oldNotifyTime;
+    if (message.containsKey('data')) {
+      // Handle data message
+      var data = message['data'] ?? message;
+      String url = data['url'];
+//      time = data['google.sent_time'];
+      print(
+          '\nData Message received by Taping status bar! \nUrl ${++i} : $url');
+//      if () {
+      // send sms
+      makeReadyToSendSms(context: this.context, url: url);
+//        oldNotifyTime =
+//      }
+    } else {
+      print("This is not a data message");
+    }
+
+    Future.delayed(const Duration(seconds: 6), () {
+      setState(() {
+        refreshList();
+      });
+    });
+
+    // Or do other work.
+  }
+
   void getNotification() {
     _fcm.configure(
       onMessage: _handleNotification,
-      onLaunch: _handleNotification,
-      onResume: _handleNotification,
+//      onMessage: (Map<String, dynamic> message) async {
+//        print("onMessage: $message");
+//      },
+      onLaunch: (Map<String, dynamic> message) async {
+        print("onLaunch: $message");
+      },
+      onResume: (Map<String, dynamic> message) async {
+        print("onResume: $message");
+      },
+//      onLaunch: _handleNotification,
+//      onResume: _handleNotification,
     );
+  }
+
+  Future<void> myAlertDialog({
+    BuildContext context,
+    String title,
+    String desc,
+  }) async {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10.0),
+          ),
+          title: Text(title),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text(desc),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            FlatButton(
+              child: Text('Yes'),
+              onPressed: () {
+                dbHelper.deleteAll(table: dbHelper.historyTable);
+                showSnackbar(context, 'All Sms History Deleted successfully!');
+                refreshList();
+                Navigator.of(context).pop();
+              },
+            ),
+            FlatButton(
+              child: Text("Cancel"),
+              onPressed: () => Navigator.of(context).pop(),
+            )
+          ],
+        );
+      },
+    );
+  }
+
+  void showSnackbar(BuildContext context, String msg) {
+    final snackBar = SnackBar(content: Text(msg));
+    globalKey.currentState.showSnackBar(snackBar);
   }
 }

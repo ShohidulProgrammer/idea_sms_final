@@ -1,6 +1,6 @@
-# idea_sms
+# ideasms
 
-A new Flutter project.
+A SMS and Push Notification Flutter application.
 
 ## Getting Started
 

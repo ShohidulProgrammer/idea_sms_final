@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:idea_sms/db/model/sms_history_model.dart';
-import 'package:idea_sms/utilities/alert_dialog.dart';
-import 'package:idea_sms/utilities/alert_style.dart';
-import 'package:idea_sms/utilities/my_alert_dialog.dart';
-import 'package:idea_sms/widgets/sms_history_list.dart';
-import 'package:rflutter_alert/rflutter_alert.dart';
+import 'package:ideasms/utilities/get_time.dart';
+import '../db/model/sms_history_model.dart';
+import '../widgets/sms_history_list.dart';
 import '../sms_helper/my_sms_sender.dart';
 import '../db/utils/db_helper.dart';
 import '../utilities/text_style.dart';
-import '../utilities/snackbar.dart';
 import '../widgets/massage_buble.dart';
-import '../utilities/date_formatter.dart' as duration;
 
 DatabaseHelper dbHelper = DatabaseHelper.db;
 
@@ -25,12 +20,15 @@ class SmsHistoryDetails extends StatefulWidget {
 
 class _SmsHistoryDetailsState extends State<SmsHistoryDetails> {
   Future<List<SmsHistoryModel>> _listFuture;
+  final globalKey = GlobalKey<ScaffoldState>();
 
   Future<bool> _onWillPop() {
-    return Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-                builder: (BuildContext context) => SmsHistoryList())) ??
+    return Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+              builder: (BuildContext context) => SmsHistoryList()),
+          (Route<dynamic> route) => false,
+        ) ??
         false;
   }
 
@@ -39,6 +37,7 @@ class _SmsHistoryDetailsState extends State<SmsHistoryDetails> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
+        key: globalKey,
         appBar: AppBar(
           elevation: 0.4,
           iconTheme: IconThemeData(color: Colors.black),
@@ -48,6 +47,13 @@ class _SmsHistoryDetailsState extends State<SmsHistoryDetails> {
             style: kBigTitleTextStyle,
           ),
           actions: <Widget>[
+            // Refresh History List View
+            IconButton(
+              icon: Icon(Icons.refresh),
+              onPressed: () {
+                refreshList();
+              },
+            ),
             IconButton(
               icon: Icon(Icons.delete_forever),
               onPressed: () {
@@ -73,16 +79,22 @@ class _SmsHistoryDetailsState extends State<SmsHistoryDetails> {
                         future: _listFuture,
                         builder: (context,
                             AsyncSnapshot<List<SmsHistoryModel>> snapshot) {
-                          if (snapshot.hasData) {
+                          if (snapshot.connectionState !=
+                              ConnectionState.done) {
+                            return Center(child: CircularProgressIndicator());
+                          } else if (snapshot.data.length <= 0) {
+                            return Center(child: Text('No SMS'));
+                          } else if (snapshot.hasError) {
+                            debugPrint('Snap Shot Data: ${snapshot.data}');
+                            return Center(child: Text('There was an error'));
+                          } else if (snapshot.hasData) {
                             return ListView.builder(
                               itemCount: snapshot.data.length,
                               shrinkWrap: true,
                               itemBuilder: (BuildContext context, int index) {
                                 SmsHistoryModel smsHistoryItem =
                                     snapshot.data[index];
-                                var parsedDate =
-                                    DateTime.parse(smsHistoryItem.date);
-                                String date = duration.formateDate(parsedDate);
+
                                 return Padding(
                                   padding: EdgeInsets.all(10),
                                   child: Column(
@@ -90,7 +102,8 @@ class _SmsHistoryDetailsState extends State<SmsHistoryDetails> {
                                       Align(
                                         alignment: Alignment.centerRight,
                                         child: Text(
-                                          date,
+                                          getTime(
+                                              dateTime: smsHistoryItem.date),
                                           style: TextStyle(
                                               color: Colors.grey, fontSize: 9),
                                         ),
@@ -109,10 +122,8 @@ class _SmsHistoryDetailsState extends State<SmsHistoryDetails> {
                                                       MySmsSender.reSendSms(
                                                           history:
                                                               smsHistoryItem);
-                                                      mySnackBar(
-                                                          context: context,
-                                                          msg:
-                                                              'SMS was trying to Resend!');
+                                                      showSnackbar(context,
+                                                          'SMS ReSend!');
                                                     },
                                                     tooltip: 'Resend Sms',
                                                     icon: Icon(
@@ -135,11 +146,7 @@ class _SmsHistoryDetailsState extends State<SmsHistoryDetails> {
                                 );
                               },
                             );
-                          } else if (snapshot.hasError) {
-                            debugPrint('Snap Shot Data: ${snapshot.data}');
-                            return Center(child: Text('There was an error'));
                           } else {
-                            // return Center(child: CircularProgressIndicator());
                             return Center(child: Text('No Value yet'));
                           }
                         }),
@@ -162,11 +169,11 @@ class _SmsHistoryDetailsState extends State<SmsHistoryDetails> {
     });
   }
 
-  void refreshList() {
+  Widget refreshList() {
     // reload
     setState(() {
       _listFuture = dbHelper.getAllMessageHistory(mobile: widget.mobile);
-//      dbHelper.getAllMobileHistories();
+//      showSnackbar(context, 'Successfully Refresh!');
     });
   }
 
@@ -197,10 +204,8 @@ class _SmsHistoryDetailsState extends State<SmsHistoryDetails> {
               onPressed: () {
                 dbHelper.deleteMassages(
                     table: dbHelper.historyTable, mobile: mobile);
-                mySnackBar(
-                    context: context,
-                    msg:
-                        'All Massages successfully deleted for this Mobile No!');
+                showSnackbar(context, 'Massages are successfully deleted!!');
+
                 Navigator.of(context).pop();
                 refreshList();
               },
@@ -213,5 +218,10 @@ class _SmsHistoryDetailsState extends State<SmsHistoryDetails> {
         );
       },
     );
+  }
+
+  void showSnackbar(BuildContext context, String msg) {
+    final snackBar = SnackBar(content: Text(msg));
+    globalKey.currentState.showSnackBar(snackBar);
   }
 }

@@ -69,14 +69,11 @@ class DatabaseHelper {
         "INSERT Into $queueTable ($colId, $colMobile, $colUser, $colMessage)"
         " VALUES (?,?,?,?)",
         [id, que.mobileNo, que.userName, que.message]);
-    print(
-        "Que Inserted: Table Name: $queueTable ID: ${que.id} Mobile: ${que.mobileNo} User: ${que.userName} Message: ${que.message}");
     return raw;
   }
 
   saveHistoryItem(SmsHistoryModel que) async {
     final db = await database;
-    debugPrint('Inserting no: ' + que.mobileNo);
     // DateFormat dateFormat = DateFormat("yyyy-MM-dd HH:mm:ss");
     DateFormat dateFormat = DateFormat();
     String date = dateFormat.format(DateTime.now());
@@ -89,7 +86,6 @@ class DatabaseHelper {
         "INSERT Into $historyTable ($colId, $colMobile, $colUser, $colMessage, $colDate, $colSend)"
         " VALUES (?,?,?,?,?,?)",
         [id, que.mobileNo, que.userName, que.message, date, que.send]);
-    debugPrint('Inserted no: ' + que.mobileNo);
     return raw;
   }
 
@@ -182,7 +178,7 @@ class DatabaseHelper {
     return db.delete(table, where: "$colId = ?", whereArgs: [id]);
   }
 
-   deleteAll({String table}) async {
+  deleteAll({String table}) async {
     final db = await database;
     db.rawDelete("Delete  from $table");
   }

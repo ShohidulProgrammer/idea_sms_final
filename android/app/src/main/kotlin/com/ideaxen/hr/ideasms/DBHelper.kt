@@ -1,15 +1,13 @@
-package com.example.idea_sms
+package com.ideaxen.hr.ideasms
 
-
-import android.content.Context
-import android.database.sqlite.SQLiteOpenHelper
 import android.content.ContentValues
+import android.content.Context
 import android.database.Cursor
 import android.database.SQLException
 import android.database.sqlite.SQLiteDatabase
+import android.database.sqlite.SQLiteOpenHelper
 import android.util.Log
 import java.io.IOException
-
 
 /**
  * Let's start by creating our database CRUD helper class
@@ -162,16 +160,17 @@ class DBHelper(private val context: Context) :
         values.put(DATE, date)
         values.put(SENDRESULT, send)
         db!!.insert(table, null, values)
-        println("Successfully Inserted to History table Mobile: $mobile, User: $user, Message: $msg Date: $date Send Result: $send")
+//        println("Successfully Inserted to History table Mobile: $mobile, User: $user, Message: $msg Date: $date Send Result: $send")
+
         db!!.delete(SMS_QUEUE_TABLE, "$ID = ?", arrayOf(id))
-        println("Que successfully deleted!")
+//        println("Que successfully deleted!")
         db!!.close()
     }
 
 
     fun update(table: String = SMS_HISTORY_TABLE, id: String, mobile: String, user: String, msg: String, date: String, send: Int) {
         val where: String
-        db = this.writableDatabase
+//        db = this.writableDatabase
         val values = ContentValues()
         values.put(ID, id)
         values.put(MOBILE, mobile)
@@ -185,7 +184,6 @@ class DBHelper(private val context: Context) :
             where = "$ID = (SELECT MAX($ID) FROM $table)"
         }
         db!!.update(table, values, "$ID = ?", arrayOf(id.toString()))
-        println("Successfully Updated the History table Mobile: $mobile, User: $user, Message: $msg Date: $date Send Result: $send")
         db!!.close()
     }
 
@@ -227,10 +225,9 @@ class DBHelper(private val context: Context) :
      * Let's create a function to delete a given row based on the id.
      */
     fun deleteItem(table: String = SMS_HISTORY_TABLE, id: String) {
-        if (table ==   SMS_QUEUE_TABLE){
+        if (table == SMS_QUEUE_TABLE) {
             val db = SQLiteDatabase.openDatabase("/data/user/0/com.example.idea_sms/app_flutter/IdeaSmsDB.db", null, 0)
-        }
-        else {
+        } else {
             db = this.writableDatabase
         }
         db!!.delete(table, "$ID = ?", arrayOf(id))
@@ -264,7 +261,7 @@ class DBHelper(private val context: Context) :
     companion object {
         private val DATABASE_VERSION = 1
         const val DATABASE_NAME = "IdeaSmsDB.db"
-        const val DB_PATH = "/data/user/0/com.example.idea_sms/app_flutter/"
+        const val DB_PATH = "/data/user/0/com.ideaxen.hr.ideasms/app_flutter/"
         const val SMS_HISTORY_TABLE = "sms_history_table"
         const val SMS_QUEUE_TABLE = "sms_queue_table"
         const val ID = "id"

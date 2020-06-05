@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utilities/get_time.dart';
 import '../pages/sms_history_detals.dart';
 import '../utilities/date_formatter.dart' as duration;
 
@@ -31,7 +32,7 @@ class SmsHistoryItemWidget extends StatelessWidget {
           title: Text(smsHistory.mobileNo),
           subtitle: Text(smsHistory.userName ?? ''),
           trailing: Text(
-            smsHistory.date == '2018,9,15' ? '' : date,
+            getTime(dateTime: smsHistory.date),
             style: TextStyle(color: Colors.grey, fontSize: 12),
           ),
         ));

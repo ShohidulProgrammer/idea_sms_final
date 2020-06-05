@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'db/utils/db_helper.dart';
 import 'router/router.dart';
+import 'widgets/sms_history_list.dart';
 
 void main() => runApp(MyApp());
 

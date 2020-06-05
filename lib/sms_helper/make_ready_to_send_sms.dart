@@ -13,7 +13,7 @@ makeReadyToSendSms(
 
   try {
     //  get data from web url
-    webDataList = await getDataFromWeb();
+    webDataList = await getDataFromWeb(url: url);
   } catch (e) {
     print('\nnetwork error: $e');
   }
